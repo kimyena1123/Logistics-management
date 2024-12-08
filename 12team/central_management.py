@@ -26,8 +26,8 @@ def update_led(zone):
         print(f"{zone} LED 꺼짐 (재고: {inventory[zone]})")
 
 def handle_inventory_update(msg):
-    """재고 업데이트를 처리하는 함수."""
     try:
+        print(f"Received message content: {msg.content}")
         zone, quantity = msg.content.split(":")
         zone = zone.strip()
         quantity = int(quantity.strip())
@@ -40,6 +40,7 @@ def handle_inventory_update(msg):
             print(f"알 수 없는 구역: {zone}")
     except Exception as e:
         print(f"재고 업데이트 처리 오류: {e}")
+
 
 def send_work_order(target_socket, msg):
     if target_socket:
