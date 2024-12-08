@@ -4,7 +4,6 @@ import threading
 from common import Message, MessageType, SendType, CENTRAL_SERVER_PORT
 from socket_util import create_and_bind_socket
 
-
 # 글로벌 변수
 worker_socket = None
 inventory = {"A 구역": 0, "B 구역": 0}  # 각 구역의 재고 상태
@@ -80,6 +79,7 @@ def receiver_data(client_socket, addr):
             break
 
 if __name__ == "__main__":
+    central_socket = None
     try:
         central_socket = create_and_bind_socket(CENTRAL_SERVER_PORT)
         print("서버가 시작되었습니다.")
@@ -87,13 +87,13 @@ if __name__ == "__main__":
         while True:
             try:
                 client_conn, addr = central_socket.accept()
-
-                # 로컬호스트 연결을 무조건 무시하지 않음
-                if addr[0] == "127.0.0.1":
-                    print("로컬호스트 연결 수락됨")
-
                 threading.Thread(target=receiver_data, args=(client_conn, addr)).start()
             except Exception as e:
                 print(f"연결 처리 오류: {e}")
+    except Exception as main_error:
+        print(f"메인 함수 에러: {main_error}")
     finally:
+        if central_socket:
+            central_socket.close()
+            print("중앙 서버 소켓 닫힘.")
         GPIO.cleanup()
