@@ -33,10 +33,16 @@ class Message:
         """Deserialize bytes to a Message object."""
         return pickle.loads(data)
 
+"""
+김예나: 192.168.122.5
+조성빈: 192.168.0.3
+강예린: 192.168.124.3
+"""
 # CENTRAL_SERVER_IP = "192.168.124.3"
 # WORKER_SERVER_IP = "192.168.122.5"
 # CENTRAL_SERVER_PORT = 8080
 # WORKER_SERVER_PORT = 8081
+
 CENTRAL_SERVER_IP = "127.0.0.1"
 WORKER_SERVER_IP = "127.0.0.1"
 CENTRAL_SERVER_PORT = 8080
