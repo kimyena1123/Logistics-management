@@ -14,8 +14,8 @@ GPIO.setmode(GPIO.BCM)
 
 # 작업자 정보
 workers = {
-    "worker1": {"uid": 849156397443, "queue": Queue(), "is_working": False, "button_pin": 18},
-    "worker2": {"uid": 543047530896, "queue": Queue(), "is_working": False, "button_pin": 19},
+    "worker1": {"uid": 849156397443, "queue": Queue(), "is_working": False, "button_pin": 18, "last_press_time": 0},
+    "worker2": {"uid": 543047530896, "queue": Queue(), "is_working": False, "button_pin": 19, "last_press_time": 0},
 }
 
 # 출근 상태 저장 (True: 출근, False: 퇴근)
@@ -74,8 +74,14 @@ def handle_button_press(channel):
     """
     버튼이 눌리면 호출되는 함수. 출근 상태와 큐 상태에 따라 메시지를 출력.
     """
+    current_time = time.time()
     for worker_name, worker_data in workers.items():
         if channel == worker_data["button_pin"]:
+            # 버튼 중복 입력 방지 (0.3초 이내 재입력 무시)
+            if current_time - worker_data["last_press_time"] < 0.3:
+                return
+            worker_data["last_press_time"] = current_time
+
             if not attendance_states[worker_data["uid"]]:
                 # 출근하지 않은 경우
                 lcd.clear()
