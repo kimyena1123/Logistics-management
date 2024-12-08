@@ -70,6 +70,8 @@ class LCD:
 # LCD 객체 생성
 lcd = LCD()
 
+
+# 버튼이 눌리면 호출되는 함수. LCD에 완료 메시지를 출력하고 가장 오래된 작업을 완료로 표시.
 def handle_button_press(channel):
     """
     버튼이 눌리면 호출되는 함수. LCD에 완료 메시지를 출력하고 가장 오래된 작업을 완료로 표시.
@@ -77,23 +79,36 @@ def handle_button_press(channel):
     for worker_name, worker_data in workers.items():
         if channel == worker_data["button_pin"]:
             if not worker_data["queue"].empty():
-                # 업무가 존재하면 가장 오래된 작업 처리
+                # 큐의 가장 오래된 작업 가져오기
                 oldest_task = worker_data["queue"].get()
-                worker_data["is_working"] = True  # 작업 완료 상태로 변경
+
+                # 완료 처리 (True로 설정) 및 큐에서 제거
+                worker_data["is_working"] = True  # 완료된 작업 표시
                 lcd.clear()
                 lcd_message = f"{worker_name}: done"
                 lcd.lcd_display_string(lcd_message, 1)
-                print(f"{worker_name} completed task")
+                print(f"{worker_name} completed task: {oldest_task}")
                 time.sleep(2)
                 lcd.clear()
+
+                # 남아 있는 작업 확인
+                if worker_data["queue"].empty():
+                    # 남아 있는 작업이 없으면 작업 없음 메시지 출력
+                    lcd.clear()
+                    lcd_message = f"{worker_name}: no task"
+                    lcd.lcd_display_string(lcd_message, 1)
+                    print(f"{worker_name}: No task to complete")
+                    time.sleep(2)
+                    lcd.clear()
             else:
-                # 작업이 없는 경우
+                # 큐가 이미 비어 있는 경우
                 lcd.clear()
                 lcd_message = f"{worker_name}: no task"
                 lcd.lcd_display_string(lcd_message, 1)
                 print(f"{worker_name}: No task to complete")
                 time.sleep(2)
                 lcd.clear()
+
 
 # 버튼 이벤트 핸들러 설정
 for worker in workers.values():
@@ -121,23 +136,46 @@ def assign_task(task):
     time.sleep(2)
     lcd.clear()
 
+    
 def toggle_work_state(uid):
     """
     RFID 태그를 통해 출퇴근 상태를 변경하고 LCD에 출력.
     """
+    # 작업자 이름 찾기
+    worker_name = None
+    for name, data in workers.items():
+        if data["uid"] == uid:
+            worker_name = name
+            break
+
+    if not worker_name:
+        # UID가 등록되지 않은 경우
+        lcd.clear()
+        lcd.lcd_display_string("Unknown card", 1)
+        print(f"Unknown UID: {uid}")
+        time.sleep(2)
+        lcd.clear()
+        return
+
+    # UID 상태 변경
     if uid not in card_states:
         card_states[uid] = True
+
     if card_states[uid]:
+        # Work start
         lcd.clear()
-        lcd.lcd_display_string("Work start", 1)
-        print(f"Work start for UID: {uid}")
+        lcd.lcd_display_string(f"{worker_name}: start", 1)
+        print(f"{worker_name} - Work start for UID: {uid}")
     else:
+        # Work finish
         lcd.clear()
-        lcd.lcd_display_string("Work finish", 1)
-        print(f"Work finish for UID: {uid}")
+        lcd.lcd_display_string(f"{worker_name}: finish", 1)
+        print(f"{worker_name} - Work finish for UID: {uid}")
+
     time.sleep(2)
     lcd.clear()
     card_states[uid] = not card_states[uid]
+
 
 def read_tags():
     """
