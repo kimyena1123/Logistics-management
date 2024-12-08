@@ -18,12 +18,12 @@ workers = {
     "worker2": {"uid": 543047530896, "queue": Queue(), "is_working": False, "button_pin": 19},
 }
 
-# UID 상태 저장
-card_states = {}
+# 출근 상태 저장 (True: 출근, False: 퇴근)
+attendance_states = {worker["uid"]: False for worker in workers.values()}
 
 # 버튼 핀 설정
 for worker in workers.values():
-    GPIO.setup(worker["button_pin"], GPIO.IN, pull_up_down=GPIO.PUD_UP)  # 버튼 핀을 입력으로 설정
+    GPIO.setup(worker["button_pin"], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # LCD 클래스 정의
 class LCD:
@@ -70,45 +70,47 @@ class LCD:
 # LCD 객체 생성
 lcd = LCD()
 
-
-# 버튼이 눌리면 호출되는 함수. LCD에 완료 메시지를 출력하고 가장 오래된 작업을 완료로 표시.
 def handle_button_press(channel):
     """
-    버튼이 눌리면 호출되는 함수. LCD에 완료 메시지를 출력하고 가장 오래된 작업을 완료로 표시.
+    버튼이 눌리면 호출되는 함수. 출근 상태와 큐 상태에 따라 메시지를 출력.
     """
     for worker_name, worker_data in workers.items():
         if channel == worker_data["button_pin"]:
-            if not worker_data["queue"].empty():
-                # 큐의 가장 오래된 작업 가져오기
-                oldest_task = worker_data["queue"].get()
-
-                # 완료 처리 (True로 설정) 및 큐에서 제거
-                worker_data["is_working"] = True  # 완료된 작업 표시
+            if not attendance_states[worker_data["uid"]]:
+                # 출근하지 않은 경우
                 lcd.clear()
-                lcd_message = f"{worker_name}: done"
+                lcd_message = "He didn't come"
                 lcd.lcd_display_string(lcd_message, 1)
-                print(f"{worker_name} completed task: {oldest_task}")
+                print(f"{worker_name}: Didn't come")
                 time.sleep(2)
                 lcd.clear()
+            else:
+                # 출근한 상태
+                if not worker_data["queue"].empty():
+                    # 업무가 있는 경우
+                    oldest_task = worker_data["queue"].get()
+                    lcd.clear()
+                    lcd_message = f"{worker_name}: done"
+                    lcd.lcd_display_string(lcd_message, 1)
+                    print(f"{worker_name} completed task: {oldest_task}")
+                    time.sleep(2)
+                    lcd.clear()
 
-                # 남아 있는 작업 확인
-                if worker_data["queue"].empty():
-                    # 남아 있는 작업이 없으면 작업 없음 메시지 출력
+                    if worker_data["queue"].empty():
+                        lcd.clear()
+                        lcd_message = f"{worker_name}: no task"
+                        lcd.lcd_display_string(lcd_message, 1)
+                        print(f"{worker_name}: No task to complete")
+                        time.sleep(2)
+                        lcd.clear()
+                else:
+                    # 업무가 없는 경우
                     lcd.clear()
                     lcd_message = f"{worker_name}: no task"
                     lcd.lcd_display_string(lcd_message, 1)
                     print(f"{worker_name}: No task to complete")
                     time.sleep(2)
                     lcd.clear()
-            else:
-                # 큐가 이미 비어 있는 경우
-                lcd.clear()
-                lcd_message = f"{worker_name}: no task"
-                lcd.lcd_display_string(lcd_message, 1)
-                print(f"{worker_name}: No task to complete")
-                time.sleep(2)
-                lcd.clear()
-
 
 # 버튼 이벤트 핸들러 설정
 for worker in workers.values():
@@ -128,7 +130,6 @@ def assign_task(task):
         workers["worker2"]["queue"].put(task)
         assigned_worker = "worker2"
 
-    # LCD 업데이트
     lcd.clear()
     lcd_message = f"{assigned_worker}: + task"
     lcd.lcd_display_string(lcd_message, 1)
@@ -136,12 +137,10 @@ def assign_task(task):
     time.sleep(2)
     lcd.clear()
 
-    
 def toggle_work_state(uid):
     """
     RFID 태그를 통해 출퇴근 상태를 변경하고 LCD에 출력.
     """
-    # 작업자 이름 찾기
     worker_name = None
     for name, data in workers.items():
         if data["uid"] == uid:
@@ -149,7 +148,6 @@ def toggle_work_state(uid):
             break
 
     if not worker_name:
-        # UID가 등록되지 않은 경우
         lcd.clear()
         lcd.lcd_display_string("Unknown card", 1)
         print(f"Unknown UID: {uid}")
@@ -157,25 +155,19 @@ def toggle_work_state(uid):
         lcd.clear()
         return
 
-    # UID 상태 변경
-    if uid not in card_states:
-        card_states[uid] = True
+    attendance_states[uid] = not attendance_states[uid]  # 출근/퇴근 상태 변경
 
-    if card_states[uid]:
-        # Work start
+    if attendance_states[uid]:
         lcd.clear()
         lcd.lcd_display_string(f"{worker_name}: start", 1)
         print(f"{worker_name} - Work start for UID: {uid}")
     else:
-        # Work finish
         lcd.clear()
         lcd.lcd_display_string(f"{worker_name}: finish", 1)
         print(f"{worker_name} - Work finish for UID: {uid}")
 
     time.sleep(2)
     lcd.clear()
-    card_states[uid] = not card_states[uid]
-
 
 def read_tags():
     """
@@ -194,7 +186,6 @@ def read_tags():
     finally:
         GPIO.cleanup()
 
-# 동일한 코드에서 `receiver_thread`에서 발생한 `Connection reset by peer` 오류를 방지하기 위해 아래 변경 적용
 def receiver_thread(server_socket):
     """
     중앙 서버로부터 데이터를 수신하는 스레드.
@@ -218,11 +209,9 @@ def receiver_thread(server_socket):
 
 def main():
     try:
-        # 중앙 서버와 연결
         central_socket = create_and_connect_socket(CENTRAL_SERVER_IP, CENTRAL_SERVER_PORT)
         print("중앙 서버에 연결 성공")
 
-        # 자신을 작업자로 식별하는 메시지 전송
         identification_msg = Message(
             type=MessageType.WORK_ORDER,
             send_type=SendType.SEND_FROM_WORKER,
@@ -231,11 +220,9 @@ def main():
         central_socket.send(identification_msg.serialize())
         print("작업자 식별 메시지 전송 완료")
 
-        # RFID 태그 읽기 스레드 시작
         tag_thread = threading.Thread(target=read_tags, daemon=True)
         tag_thread.start()
 
-        # 수신 스레드 실행
         recv_thread = threading.Thread(target=receiver_thread, args=(central_socket,))
         recv_thread.start()
 
