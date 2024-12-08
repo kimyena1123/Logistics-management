@@ -3,6 +3,7 @@ import time
 from common import Message, MessageType, SendType, CENTRAL_SERVER_IP, CENTRAL_SERVER_PORT
 from socket_util import create_and_connect_socket
 
+
 # 예제 데이터: 각 구역별 센서와 수기 입력 데이터를 가져오는 함수
 def get_sensor_data(zone):
     """각 구역(A, B)의 센서 데이터를 가져오는 함수"""
