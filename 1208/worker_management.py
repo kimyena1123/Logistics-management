@@ -15,7 +15,7 @@ GPIO.setmode(GPIO.BCM)
 # 작업자 정보
 workers = {
     "worker1": {"uid": 849156397443, "queue": Queue(), "is_working": False, "button_pin": 18},
-    "worker2": {"uid": 849156397444, "queue": Queue(), "is_working": False, "button_pin": 19},
+    "worker2": {"uid": 543047530896, "queue": Queue(), "is_working": False, "button_pin": 19},
 }
 
 # UID 상태 저장
@@ -81,9 +81,9 @@ def handle_button_press(channel):
                 oldest_task = worker_data["queue"].get()
                 worker_data["is_working"] = True  # 작업 완료 상태로 변경
                 lcd.clear()
-                lcd_message = f"{worker_name}: {oldest_task} done"
+                lcd_message = f"{worker_name}: done"
                 lcd.lcd_display_string(lcd_message, 1)
-                print(f"{worker_name} completed task: {oldest_task}")
+                print(f"{worker_name} completed task")
                 time.sleep(2)
                 lcd.clear()
             else:
@@ -115,7 +115,7 @@ def assign_task(task):
 
     # LCD 업데이트
     lcd.clear()
-    lcd_message = f"{assigned_worker}: work add"
+    lcd_message = f"{assigned_worker}: + task"
     lcd.lcd_display_string(lcd_message, 1)
     print(f"{assigned_worker} assigned task: {task}")
     time.sleep(2)
